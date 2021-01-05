@@ -80,9 +80,10 @@ resource "vsphere_tag" "tag" {
 ##}
 ## Upload CentOS 8 ISO to the new content library (?)
 
+#==================================================================
 ## Create template VM from OVA
 
-data "template_file" "ignition_init" {
+data "template_file" "template_vm_ignition_init" {
   template = file("./templates/template_ignition.yaml")
   vars = {
     cluster_name   = var.cluster_name
@@ -90,22 +91,22 @@ data "template_file" "ignition_init" {
   }
 }
 resource "local_file" "template_vm_ignition_file" {
-  depends_on = [data.template_file.ignition_init]
-  content    = data.template_file.ignition_init.rendered
+  depends_on = [data.template_file.template_vm_ignition_init]
+  content    = data.template_file.template_vm_ignition_init.rendered
   filename   = "${var.generationDir}/.${var.cluster_name}.${var.domain}/template_vm-ignition.yaml"
 }
-resource "null_resource" "ignition_init_fcct" {
+resource "null_resource" "template_vm_ignition_init_fcct" {
   depends_on = [local_file.template_vm_ignition_file]
   provisioner "local-exec" {
     command = "fcct -o ${var.generationDir}/.${var.cluster_name}.${var.domain}/template_vm-ignition.ign ${var.generationDir}/.${var.cluster_name}.${var.domain}/template_vm-ignition.yaml"
   }
 }
-data "local_file" "ignition_init_fcct" {
+data "local_file" "template_vm_ignition_init_fcct" {
   filename   = "${var.generationDir}/.${var.cluster_name}.${var.domain}/template_vm-ignition.ign"
-  depends_on = [null_resource.ignition_init_fcct]
+  depends_on = [null_resource.template_vm_ignition_init_fcct]
 }
 resource "vsphere_virtual_machine" "templateVM" {
-  depends_on       = [data.local_file.ignition_init_fcct]
+  depends_on       = [data.local_file.template_vm_ignition_init_fcct]
   tags             = [vsphere_tag.tag.id]
   name             = "${var.cluster_name}-template"
   resource_pool_id = data.vsphere_compute_cluster.cluster.resource_pool_id
@@ -134,8 +135,9 @@ resource "vsphere_virtual_machine" "templateVM" {
   }
 
   extra_config = {
-    "guestinfo.ignition.config.data"          = base64encode(data.local_file.ignition_init_fcct.content)
+    "guestinfo.ignition.config.data"          = base64encode(data.local_file.template_vm_ignition_init_fcct.content)
     "guestinfo.ignition.config.data.encoding" = "base64"
+    "guestinfo.hostname"                      = "${var.cluster_name}-template"
   }
 
   provisioner "local-exec" {
@@ -151,67 +153,90 @@ resource "vsphere_virtual_machine" "templateVM" {
   }
 }
 
-#data "vsphere_virtual_machine" "templateVM" {
-#  name          = "${var.cluster_name}-template"
-#  datacenter_id = data.vsphere_datacenter.dc.id
-#  depends_on    = [vsphere_virtual_machine.templateVM]
-#}
+#==================================================================
+## Create Bootstrap node
 
-## Create Hub Node (Load Balancer, HTTP for ignition, DNS)
-#resource "vsphere_virtual_machine" "bootstrap" {
-#  depends_on       = [data.vsphere_virtual_machine.templateVM]
-#  name             = "${var.cluster_name}-bootstrap"
-#  resource_pool_id = data.vsphere_compute_cluster.cluster.resource_pool_id
-#  datastore_id     = data.vsphere_datastore.datastore.id
-#
-#  num_cpus             = var.k8s_app_bootstrap_cpu_count
-#  num_cores_per_socket = var.k8s_bootstrap_core_count
-#  memory               = var.k8s_bootstrap_memory_size
-#  guest_id             = "coreos64Guest"
-#  enable_disk_uuid     = "true"
-#
-#  wait_for_guest_net_timeout  = 0
-#  wait_for_guest_net_routable = false
-#
-#  scsi_type = data.vsphere_virtual_machine.templateVM.scsi_type
-#
-#  network_interface {
-#    network_id   = data.vsphere_network.network.id
-#    adapter_type = data.vsphere_virtual_machine.templateVM.network_interface_types[0]
-#  }
-#
-#  disk {
-#    label            = "disk0"
-#    size             = var.k8s_bootstrap_disk_size
-#    eagerly_scrub    = data.vsphere_virtual_machine.templateVM.disks.0.eagerly_scrub
-#    thin_provisioned = true
-#  }
-#
-#  clone {
-#    template_uuid = data.vsphere_virtual_machine.templateVM.id
-#
-#    customize {
-#      linux_options {
-#        host_name = "${var.cluster_name}-bootstrap"
-#        domain    = var.domain
-#      }
-#
-#      network_interface {
-#        ipv4_address = "192.168.42.82"
-#        ipv4_netmask = 24
-#      }
-#
-#      ipv4_gateway = "192.168.42.1"
-#    }
-#  }
-#
-#  extra_config = {
-#    "guestinfo.ignition.config.data"          = base64encode(var.k8s_bootstrap_ignition)
-#    "guestinfo.ignition.config.data.encoding" = "base64"
-#    "guestinfo.hostname"                      = "${var.cluster_name}-bootstrap"
-#  }
-#  tags = [vsphere_tag.tag.id]
-#}
+data "template_file" "bootstrap_vm_ignition_init" {
+  template = file("./templates/bootstrap_ignition.yaml")
+  vars = {
+    cluster_name   = var.cluster_name
+    ssh_public_key = tls_private_key.cluster_new_key.public_key_openssh
+  }
+}
+resource "local_file" "bootstrap_vm_ignition_file" {
+  depends_on = [data.template_file.bootstrap_vm_ignition_init]
+  content    = data.template_file.bootstrap_vm_ignition_init.rendered
+  filename   = "${var.generationDir}/.${var.cluster_name}.${var.domain}/bootstrap_vm-ignition.yaml"
+}
+resource "null_resource" "bootstrap_vm_ignition_init_fcct" {
+  depends_on = [local_file.bootstrap_vm_ignition_file]
+  provisioner "local-exec" {
+    command = "fcct -o ${var.generationDir}/.${var.cluster_name}.${var.domain}/bootstrap_vm-ignition.ign ${var.generationDir}/.${var.cluster_name}.${var.domain}/bootstrap_vm-ignition.yaml"
+  }
+}
+data "local_file" "bootstrap_vm_ignition_init_fcct" {
+  filename   = "${var.generationDir}/.${var.cluster_name}.${var.domain}/bootstrap_vm-ignition.ign"
+  depends_on = [null_resource.bootstrap_vm_ignition_init_fcct]
+}
+data "vsphere_virtual_machine" "templateVM" {
+  depends_on    = [vsphere_virtual_machine.templateVM]
+  name          = "${var.cluster_name}-template"
+  datacenter_id = data.vsphere_datacenter.dc.id
+}
+resource "vsphere_virtual_machine" "bootstrapVM" {
+  depends_on       = [data.vsphere_virtual_machine.templateVM]
+  name             = "${var.cluster_name}-bootstrap"
+  resource_pool_id = data.vsphere_compute_cluster.cluster.resource_pool_id
+  datastore_id     = data.vsphere_datastore.datastore.id
+
+  num_cpus             = var.k8s_bootstrap_cpu_count
+  num_cores_per_socket = var.k8s_bootstrap_core_count
+  memory               = var.k8s_bootstrap_memory_size
+  guest_id             = "coreos64Guest"
+  enable_disk_uuid     = "true"
+
+  wait_for_guest_net_timeout  = 0
+  wait_for_guest_net_routable = false
+
+  scsi_type = data.vsphere_virtual_machine.templateVM.scsi_type
+
+  network_interface {
+    network_id   = data.vsphere_network.network.id
+    adapter_type = data.vsphere_virtual_machine.templateVM.network_interface_types[0]
+  }
+
+  disk {
+    label            = "disk0"
+    size             = var.k8s_bootstrap_disk_size
+    eagerly_scrub    = data.vsphere_virtual_machine.templateVM.disks.0.eagerly_scrub
+    thin_provisioned = true
+  }
+
+  clone {
+    template_uuid = data.vsphere_virtual_machine.templateVM.id
+
+    customize {
+      linux_options {
+        host_name = "${var.cluster_name}-bootstrap"
+        domain    = var.domain
+      }
+
+      network_interface {
+        ipv4_address = "192.168.42.82"
+        ipv4_netmask = 24
+      }
+
+      ipv4_gateway = "192.168.42.1"
+    }
+  }
+
+  extra_config = {
+    "guestinfo.ignition.config.data"          = base64encode(data.local_file.bootstrap_vm_ignition_init_fcct.content)
+    "guestinfo.ignition.config.data.encoding" = "base64"
+    "guestinfo.hostname"                      = "${var.cluster_name}-bootstrap"
+  }
+  tags = [vsphere_tag.tag.id]
+}
 ## Create Orchestrator Nodes
 
 ## Create Application Nodes
