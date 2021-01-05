@@ -38,19 +38,19 @@ resource "vsphere_folder" "vm_folder" {
   tags          = [vsphere_tag.tag.id]
 }
 
-## Create new content Library
-resource "vsphere_content_library" "library" {
-  name            = "K8sDeployer"
-  storage_backing = [data.vsphere_datastore.datastore.id]
-  description     = "Primarily Fedora Core OS images to deploy Kubernetes"
-}
-## Upload FCOS OVA to the new content library
-resource "vsphere_content_library_item" "fcos" {
-  name        = "FCOS ${var.fcos_version}"
-  description = "Fedora CoreOS ${var.fcos_version} template"
-  library_id  = vsphere_content_library.library.id
-  file_url    = "/tmp/.k8s-deployer/cache/fedora-coreos-${var.fcos_version}-vmware.x86_64.ova"
-}
+## [OPTIONAL] Create new content Library - used if manually creating new VMs from the OVA, primarily in testing
+##resource "vsphere_content_library" "library" {
+##  name            = "K8sDeployer"
+##  storage_backing = [data.vsphere_datastore.datastore.id]
+##  description     = "Primarily Fedora Core OS images to deploy Kubernetes"
+##}
+#### Upload FCOS OVA to the new content library
+##resource "vsphere_content_library_item" "fcos" {
+##  name        = "FCOS ${var.fcos_version}"
+##  description = "Fedora CoreOS ${var.fcos_version} template"
+##  library_id  = vsphere_content_library.library.id
+##  file_url    = "/tmp/.k8s-deployer/cache/fedora-coreos-${var.fcos_version}-vmware.x86_64.ova"
+##}
 
 ## Upload CentOS 8 ISO to the new content library (?)
 
@@ -196,9 +196,10 @@ resource "vsphere_virtual_machine" "bootstrapVM" {
   }
 
   extra_config = {
-    "guestinfo.ignition.config.data"          = base64encode(data.local_file.bootstrap_vm_ignition_init_fcct.content)
-    "guestinfo.ignition.config.data.encoding" = "base64"
-    "guestinfo.hostname"                      = "${var.cluster_name}-bootstrap"
+    "guestinfo.ignition.config.data"           = base64encode(data.local_file.bootstrap_vm_ignition_init_fcct.content)
+    "guestinfo.ignition.config.data.encoding"  = "base64"
+    "guestinfo.hostname"                       = "${var.cluster_name}-bootstrap"
+    "guestinfo.afterburn.initrd.network-kargs" = var.k8s_bootstrap_vm_network_type != "dhcp" ? "ip=${var.k8s_bootstrap_vm_network_ip}:${var.k8s_bootstrap_vm_network_server_id}:${var.k8s_bootstrap_vm_network_gateway}:${var.k8s_bootstrap_vm_network_subnet}:${var.cluster_name}-bootstrap:${var.k8s_bootstrap_vm_network_interface}:off" : "ip=::::${var.cluster_name}-bootstrap:ens192:on"
   }
   tags   = [vsphere_tag.tag.id]
   folder = vsphere_folder.vm_folder.path

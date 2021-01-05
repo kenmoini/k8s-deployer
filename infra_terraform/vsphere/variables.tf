@@ -76,6 +76,32 @@ variable "k8s_bootstrap_cpu_count" {
   type    = string
   default = "4"
 }
+# k8s_bootstrap_vm_network_type: static/dhcp
+variable "k8s_bootstrap_vm_network_type" {
+  type    = string
+  default = "static"
+}
+variable "k8s_bootstrap_vm_network_ip" {
+  type    = string
+  default = "192.168.42.80"
+}
+variable "k8s_bootstrap_vm_network_subnet" {
+  type    = string
+  default = "255.255.255.0"
+}
+variable "k8s_bootstrap_vm_network_gateway" {
+  type    = string
+  default = "192.168.42.1"
+}
+variable "k8s_bootstrap_vm_network_interface" {
+  type    = string
+  default = "ens192"
+}
+variable "k8s_bootstrap_vm_network_server_id" {
+  type    = string
+  default = ""
+}
+
 
 variable "k8s_orchestrator_cpu_count" {
   type    = string
