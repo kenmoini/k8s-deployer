@@ -1,2 +1,8 @@
 .terraform*
 credentials.tf
+sandbox/credentials.tf
+sandbox/global_data.tf
+sandbox/variables.tf
+sandbox/version.tf
+sandbox/.terraform*
+sandbox/terraform.tfstate*

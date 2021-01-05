@@ -12,27 +12,6 @@ resource "local_file" "cluster_new_pub_file" {
   filename = "${var.generationDir}/.${var.cluster_name}.${var.domain}/pub.key"
 }
 
-## Gather data, need IDs
-data "vsphere_datacenter" "dc" {
-  name = var.vmware_datacenter
-}
-data "vsphere_datastore" "datastore" {
-  name          = var.vmware_datastore
-  datacenter_id = data.vsphere_datacenter.dc.id
-}
-data "vsphere_compute_cluster" "cluster" {
-  name          = var.vmware_cluster
-  datacenter_id = data.vsphere_datacenter.dc.id
-}
-data "vsphere_network" "network" {
-  name          = var.vmware_network
-  datacenter_id = data.vsphere_datacenter.dc.id
-}
-data "vsphere_host" "host" {
-  name          = var.vmware_ova_host
-  datacenter_id = data.vsphere_datacenter.dc.id
-}
-
 ## Setup Tag Category and Tag(s)
 resource "vsphere_tag_category" "category" {
   name        = "k8s-deployer-${var.cluster_name}"
@@ -54,30 +33,19 @@ resource "vsphere_tag" "tag" {
 }
 
 ## Create new content Library
-##resource "vsphere_content_library" "library" {
-##  name            = "K8sDeployer"
-##  storage_backing = [data.vsphere_datastore.datastore.id]
-##  description     = "Primarily Fedora Core OS images to deploy Kubernetes"
-##}
-##
-#### Upload FCOS OVA to the new content library
-##resource "vsphere_content_library_item" "fcos" {
-##  name        = "FCOS ${var.fcos_version}"
-##  description = "Fedora CoreOS ${var.fcos_version} template"
-##  library_id  = vsphere_content_library.library.id
-##  file_url    = "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${var.fcos_version}/x86_64/fedora-coreos-${var.fcos_version}-vmware.x86_64.ova"
-##}
+resource "vsphere_content_library" "library" {
+  name            = "K8sDeployer"
+  storage_backing = [data.vsphere_datastore.datastore.id]
+  description     = "Primarily Fedora Core OS images to deploy Kubernetes"
+}
+## Upload FCOS OVA to the new content library
+resource "vsphere_content_library_item" "fcos" {
+  name        = "FCOS ${var.fcos_version}"
+  description = "Fedora CoreOS ${var.fcos_version} template"
+  library_id  = vsphere_content_library.library.id
+  file_url    = "/tmp/.k8s-deployer/cache/fedora-coreos-${var.fcos_version}-vmware.x86_64.ova"
+}
 
-##output "fcostemplate" {
-##  value      = data.vsphere_virtual_machine.fcostemplate
-##  depends_on = [vsphere_content_library_item.fcos]
-##}
-##
-##data "vsphere_virtual_machine" "fcostemplate" {
-##  name          = "FCOS ${var.fcos_version}"
-##  datacenter_id = data.vsphere_datacenter.dc.id
-##  depends_on    = [vsphere_content_library_item.fcos]
-##}
 ## Upload CentOS 8 ISO to the new content library (?)
 
 #==================================================================
