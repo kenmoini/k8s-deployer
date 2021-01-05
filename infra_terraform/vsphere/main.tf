@@ -1,3 +1,4 @@
+#############################################################################
 ## Generate new cluster SSH Keys
 resource "tls_private_key" "cluster_new_key" {
   algorithm = "RSA"
@@ -12,6 +13,7 @@ resource "local_file" "cluster_new_pub_file" {
   filename = "${var.generationDir}/.${var.cluster_name}.${var.domain}/pub.key"
 }
 
+#############################################################################
 ## Setup Folder, Tag Category, and Tag(s)
 resource "vsphere_tag_category" "category" {
   name        = "k8s-deployer-${var.cluster_name}"
@@ -52,9 +54,7 @@ resource "vsphere_folder" "vm_folder" {
 ##  file_url    = "/tmp/.k8s-deployer/cache/fedora-coreos-${var.fcos_version}-vmware.x86_64.ova"
 ##}
 
-## Upload CentOS 8 ISO to the new content library (?)
-
-#==================================================================
+#############################################################################
 ## Create template VM from OVA
 
 data "template_file" "template_vm_ignition_init" {
@@ -235,5 +235,52 @@ data "local_file" "orchestrator_vm_ignition_init_fcct" {
   depends_on = [null_resource.orchestrator_vm_ignition_init_fcct]
   filename   = "${var.generationDir}/.${var.cluster_name}.${var.domain}/orchestrator_vm_${count.index}-ignition.ign"
 }
+resource "vsphere_virtual_machine" "orchestratorVMs" {
+  depends_on = [data.vsphere_virtual_machine.templateVM, data.local_file.orchestrator_vm_ignition_init_fcct]
+  count      = var.k8s_orchestrator_node_count
 
+  name             = "${var.cluster_name}-orch-${count.index}"
+  resource_pool_id = data.vsphere_compute_cluster.cluster.resource_pool_id
+  datastore_id     = data.vsphere_datastore.datastore.id
+
+  num_cpus         = var.k8s_orchestrator_cpu_count
+  memory           = var.k8s_orchestrator_memory_size
+  guest_id         = "coreos64Guest"
+  enable_disk_uuid = "true"
+
+  wait_for_guest_net_timeout  = 0
+  wait_for_guest_net_routable = false
+
+  scsi_type = data.vsphere_virtual_machine.templateVM.scsi_type
+
+  network_interface {
+    network_id   = data.vsphere_network.network.id
+    adapter_type = data.vsphere_virtual_machine.templateVM.network_interface_types[0]
+  }
+
+  disk {
+    label            = "disk0"
+    size             = var.k8s_orchestrator_disk_size
+    eagerly_scrub    = data.vsphere_virtual_machine.templateVM.disks.0.eagerly_scrub
+    thin_provisioned = true
+  }
+
+  clone {
+    template_uuid = data.vsphere_virtual_machine.templateVM.id
+  }
+
+  extra_config = {
+    "guestinfo.ignition.config.data"           = base64encode(element(data.local_file.orchestrator_vm_ignition_init_fcct.*.content, count.index))
+    "guestinfo.ignition.config.data.encoding"  = "base64"
+    "guestinfo.hostname"                       = "${var.cluster_name}-orch-${count.index}"
+    "guestinfo.afterburn.initrd.network-kargs" = lookup(var.k8s_orchestrator_network_config, "orchestrator_${count.index}_type") != "dhcp" ? "ip=${lookup(var.k8s_orchestrator_network_config, "orchestrator_${count.index}_ip")}:${lookup(var.k8s_orchestrator_network_config, "orchestrator_${count.index}_server_id")}:${lookup(var.k8s_orchestrator_network_config, "orchestrator_${count.index}_gateway")}:${lookup(var.k8s_orchestrator_network_config, "orchestrator_${count.index}_subnet")}:${var.cluster_name}-orch-${count.index}:${lookup(var.k8s_orchestrator_network_config, "orchestrator_${count.index}_interface")}:off" : "ip=::::${var.cluster_name}-orch-${count.index}:ens192:on"
+  }
+  tags   = [vsphere_tag.tag.id]
+  folder = vsphere_folder.vm_folder.path
+}
+
+#############################################################################
+## Create Infrastructure Nodes
+
+#############################################################################
 ## Create Application Nodes
