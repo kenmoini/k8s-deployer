@@ -9,7 +9,6 @@ passwd:
       no_create_home: false
       groups:
         - wheel
-        - plugdev
       shell: /bin/bash
 storage:
   files:

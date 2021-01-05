@@ -1,0 +1,22 @@
+variant: fcos
+version: 1.2.0
+passwd:
+  users:
+    - name: core
+      ssh_authorized_keys:
+        - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC+Tyezd4hjl93n4gCfGR4QvYoVnA9BGLQ+RMiQcwoy7PepNjlRlsuKQ3vPMxfpV/5Kc/VtP/fa1uLeii9q2ibyzRg5DyHK9My8RDJhfnYIRpCCkkIdcWfg+xWwZbYWT5mv/YqAJTAEFfKhCV4Ti6+6tWTlSBuQnDcr723EhbRmsWRLW8udfV0C7k1bJq9m3IRteki5kSaZklsO9UVkT/EghBRAOiTHy8IIGukqmTv7+f4NbTlRj1BJYpqT2+gOcg7LcH0htdyV9Irga2Y25Pjxiu8ubniPCMEmBBMMPCvIGkIWlpGJCLZFnOS37zjaPrp7UVReoS7k2Sb0aU8V/fXCL7Vq53HMivoZPYY6qQ8EXOLhsek9dtf6EHSzmbyJon/6Ki0KFxiny1ppTtTw98c/jJBTApkaf5K5W8jWoasWcMA+LcO3mFijK6CZ8QR2l6GViPcjwu+3r2oAo2e2ZJIix444greo4ZeqxsbZGOeGNHtX57NqSh9w+yinsgmPov5fRNmUgmyMFYQsA+FOOs0jQkY4CFtmuQicbY6JJ5mYBCik2v4Wd9Wjd5020IlkOIQhqReZ1vFflokFjEZ+HfCpCkLqdJbTnueeN6DCI3mXA8emcRUfQDD5Lldt70aAF3xgDWmjaz2gbvcKdYVHTFPspUO83yAS1ao18nbzHBnzMQ==
+      home_dir: /home/core
+      no_create_home: false
+      groups:
+        - wheel
+      shell: /bin/bash
+storage:
+  files:
+    - path: /etc/sysctl.d/20-silence-audit.conf
+      contents:
+        inline: |
+          kernel.printk=4
+    - path: /etc/hostname
+      mode: 420
+      contents:
+        inline: "${cluster_name}-bootstrap"
