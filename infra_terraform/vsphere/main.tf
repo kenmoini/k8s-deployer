@@ -85,7 +85,8 @@ resource "vsphere_tag" "tag" {
 data "template_file" "ignition_init" {
   template = file("./templates/template_ignition.yaml")
   vars = {
-    cluster_name = var.cluster_name
+    cluster_name   = var.cluster_name
+    ssh_public_key = tls_private_key.cluster_new_key.public_key_openssh
   }
 }
 resource "local_file" "template_vm_ignition_file" {
