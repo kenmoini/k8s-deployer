@@ -20,4 +20,4 @@ storage:
     - path: /etc/hostname
       mode: 420
       contents:
-        inline: "${var.cluster_name}-template"
+        inline: "${cluster_name}-template"

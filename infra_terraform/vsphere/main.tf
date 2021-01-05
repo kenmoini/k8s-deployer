@@ -84,6 +84,9 @@ resource "vsphere_tag" "tag" {
 
 data "template_file" "ignition_init" {
   template = file("./templates/template_ignition.yaml")
+  vars = {
+    cluster_name = var.cluster_name
+  }
 }
 resource "local_file" "template_vm_ignition_file" {
   depends_on = [data.template_file.ignition_init]
@@ -96,8 +99,12 @@ resource "null_resource" "ignition_init_fcct" {
     command = "fcct -o ${var.generationDir}/.${var.cluster_name}.${var.domain}/template_vm-ignition.ign ${var.generationDir}/.${var.cluster_name}.${var.domain}/template_vm-ignition.yaml"
   }
 }
+data "local_file" "ignition_init_fcct" {
+  filename   = "${var.generationDir}/.${var.cluster_name}.${var.domain}/template_vm-ignition.ign"
+  depends_on = [null_resource.ignition_init_fcct]
+}
 resource "vsphere_virtual_machine" "templateVM" {
-  depends_on       = [null_resource.ignition_init_fcct]
+  depends_on       = [data.local_file.ignition_init_fcct]
   tags             = [vsphere_tag.tag.id]
   name             = "${var.cluster_name}-template"
   resource_pool_id = data.vsphere_compute_cluster.cluster.resource_pool_id
@@ -105,9 +112,9 @@ resource "vsphere_virtual_machine" "templateVM" {
   datastore_id     = data.vsphere_datastore.datastore.id
   host_system_id   = data.vsphere_host.host.id
 
-  num_cpus             = var.k8s_app_bootstrap_cpu_count
-  num_cores_per_socket = var.k8s_bootstrap_core_count
-  memory               = var.k8s_bootstrap_memory_size
+  num_cpus             = var.k8s_template_vm_cpu_count
+  num_cores_per_socket = var.k8s_template_vm_core_count
+  memory               = var.k8s_template_vm_memory_size
   guest_id             = "coreos64Guest"
   enable_disk_uuid     = "true"
 
@@ -126,8 +133,20 @@ resource "vsphere_virtual_machine" "templateVM" {
   }
 
   extra_config = {
-    "guestinfo.ignition.config.data"          = base64encode(file("${var.generationDir}/.${var.cluster_name}.${var.domain}/template_vm-ignition.ign"))
+    "guestinfo.ignition.config.data"          = base64encode(data.local_file.ignition_init_fcct.content)
     "guestinfo.ignition.config.data.encoding" = "base64"
+  }
+
+  provisioner "local-exec" {
+    command = "govc vm.power -off=true ${var.cluster_name}-template"
+
+    environment = {
+      GOVC_URL      = var.vsphere_server
+      GOVC_USERNAME = var.vsphere_user
+      GOVC_PASSWORD = var.vsphere_password
+
+      GOVC_INSECURE = "true"
+    }
   }
 }
 
