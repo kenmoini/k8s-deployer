@@ -61,10 +61,6 @@ variable "k8s_template_vm_memory_size" {
 }
 variable "k8s_template_vm_cpu_count" {
   type    = string
-  default = "1"
-}
-variable "k8s_template_vm_core_count" {
-  type    = string
   default = "4"
 }
 
@@ -78,35 +74,18 @@ variable "k8s_bootstrap_memory_size" {
 }
 variable "k8s_bootstrap_cpu_count" {
   type    = string
-  default = "1"
-}
-variable "k8s_bootstrap_core_count" {
-  type    = string
   default = "4"
 }
 
 variable "k8s_orchestrator_cpu_count" {
   type    = string
-  default = "1"
+  default = "4"
 }
 variable "k8s_infra_node_cpu_count" {
   type    = string
-  default = "1"
+  default = "4"
 }
 variable "k8s_app_node_cpu_count" {
-  type    = string
-  default = "1"
-}
-
-variable "k8s_orchestrator_core_count" {
-  type    = string
-  default = "4"
-}
-variable "k8s_infra_node_core_count" {
-  type    = string
-  default = "4"
-}
-variable "k8s_app_node_core_count" {
   type    = string
   default = "4"
 }

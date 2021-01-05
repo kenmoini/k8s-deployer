@@ -82,11 +82,10 @@ resource "vsphere_virtual_machine" "templateVM" {
   datastore_id     = data.vsphere_datastore.datastore.id
   host_system_id   = data.vsphere_host.host.id
 
-  num_cpus             = var.k8s_template_vm_cpu_count
-  num_cores_per_socket = var.k8s_template_vm_core_count
-  memory               = var.k8s_template_vm_memory_size
-  guest_id             = "coreos64Guest"
-  enable_disk_uuid     = "true"
+  num_cpus         = var.k8s_template_vm_cpu_count
+  memory           = var.k8s_template_vm_memory_size
+  guest_id         = "coreos64Guest"
+  enable_disk_uuid = "true"
 
   wait_for_guest_net_timeout  = 0
   wait_for_guest_ip_timeout   = 0
@@ -162,11 +161,10 @@ resource "vsphere_virtual_machine" "bootstrapVM" {
   resource_pool_id = data.vsphere_compute_cluster.cluster.resource_pool_id
   datastore_id     = data.vsphere_datastore.datastore.id
 
-  num_cpus             = var.k8s_bootstrap_cpu_count
-  num_cores_per_socket = var.k8s_bootstrap_core_count
-  memory               = var.k8s_bootstrap_memory_size
-  guest_id             = "coreos64Guest"
-  enable_disk_uuid     = "true"
+  num_cpus         = var.k8s_bootstrap_cpu_count
+  memory           = var.k8s_bootstrap_memory_size
+  guest_id         = "coreos64Guest"
+  enable_disk_uuid = "true"
 
   wait_for_guest_net_timeout  = 0
   wait_for_guest_net_routable = false
@@ -187,20 +185,6 @@ resource "vsphere_virtual_machine" "bootstrapVM" {
 
   clone {
     template_uuid = data.vsphere_virtual_machine.templateVM.id
-
-    customize {
-      linux_options {
-        host_name = "${var.cluster_name}-bootstrap"
-        domain    = var.domain
-      }
-
-      network_interface {
-        ipv4_address = "192.168.42.82"
-        ipv4_netmask = 24
-      }
-
-      ipv4_gateway = "192.168.42.1"
-    }
   }
 
   extra_config = {
