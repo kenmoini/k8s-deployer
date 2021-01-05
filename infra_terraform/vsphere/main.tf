@@ -113,7 +113,7 @@ resource "vsphere_virtual_machine" "templateVM" {
   }
 
   provisioner "local-exec" {
-    command = "govc vm.power -off=true ${var.cluster_name}-template"
+    command = "govc vm.power -off=true ${var.cluster_name}-template && sleep 10"
 
     environment = {
       GOVC_URL      = var.vsphere_server
