@@ -12,7 +12,7 @@ resource "local_file" "cluster_new_pub_file" {
   filename = "${var.generationDir}/.${var.cluster_name}.${var.domain}/pub.key"
 }
 
-## Setup Tag Category and Tag(s)
+## Setup Folder, Tag Category, and Tag(s)
 resource "vsphere_tag_category" "category" {
   name        = "k8s-deployer-${var.cluster_name}"
   description = "Added by k8s-deployer do not remove"
@@ -30,6 +30,12 @@ resource "vsphere_tag" "tag" {
   name        = var.cluster_name
   category_id = vsphere_tag_category.category.id
   description = "Added by k8s-deployer do not remove"
+}
+resource "vsphere_folder" "vm_folder" {
+  path          = "k8s-deployer-${var.cluster_name}-vms"
+  type          = "vm"
+  datacenter_id = data.vsphere_datacenter.dc.id
+  tags          = [vsphere_tag.tag.id]
 }
 
 ## Create new content Library
@@ -76,6 +82,7 @@ data "local_file" "template_vm_ignition_init_fcct" {
 resource "vsphere_virtual_machine" "templateVM" {
   depends_on       = [data.local_file.template_vm_ignition_init_fcct]
   tags             = [vsphere_tag.tag.id]
+  folder           = vsphere_folder.vm_folder.id
   name             = "${var.cluster_name}-template"
   resource_pool_id = data.vsphere_compute_cluster.cluster.resource_pool_id
   datacenter_id    = data.vsphere_datacenter.dc.id
@@ -193,7 +200,8 @@ resource "vsphere_virtual_machine" "bootstrapVM" {
     "guestinfo.ignition.config.data.encoding" = "base64"
     "guestinfo.hostname"                      = "${var.cluster_name}-bootstrap"
   }
-  tags = [vsphere_tag.tag.id]
+  tags   = [vsphere_tag.tag.id]
+  folder = vsphere_folder.vm_folder.id
 }
 ## Create Orchestrator Nodes
 
