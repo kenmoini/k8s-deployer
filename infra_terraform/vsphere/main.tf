@@ -98,7 +98,7 @@ resource "vsphere_virtual_machine" "templateVM" {
     ip_protocol          = "IPV4"
     ip_allocation_policy = "STATIC_MANUAL"
     ovf_network_map = {
-      "ESX-port-1" = data.vsphere_network.network.id
+      "vmxnet3" = data.vsphere_network.network.id
     }
   }
 
@@ -106,6 +106,11 @@ resource "vsphere_virtual_machine" "templateVM" {
     "guestinfo.ignition.config.data"          = base64encode(data.local_file.template_vm_ignition_init_fcct.content)
     "guestinfo.ignition.config.data.encoding" = "base64"
     "guestinfo.hostname"                      = "${var.cluster_name}-template"
+  }
+
+  network_interface {
+    network_id   = data.vsphere_network.network.id
+    adapter_type = "vmxnet3"
   }
 
   provisioner "local-exec" {
