@@ -199,7 +199,7 @@ resource "vsphere_virtual_machine" "bootstrapVM" {
     "guestinfo.ignition.config.data"           = base64encode(data.local_file.bootstrap_vm_ignition_init_fcct.content)
     "guestinfo.ignition.config.data.encoding"  = "base64"
     "guestinfo.hostname"                       = "${var.cluster_name}-bootstrap"
-    "guestinfo.afterburn.initrd.network-kargs" = var.k8s_bootstrap_vm_network_type != "dhcp" ? "ip=${var.k8s_bootstrap_vm_network_ip}:${var.k8s_bootstrap_vm_network_server_id}:${var.k8s_bootstrap_vm_network_gateway}:${var.k8s_bootstrap_vm_network_subnet}:${var.cluster_name}-bootstrap:${var.k8s_bootstrap_vm_network_interface}:off" : "ip=::::${var.cluster_name}-bootstrap:ens192:on"
+    "guestinfo.afterburn.initrd.network-kargs" = lookup(var.k8s_bootstrap_vm_network_config, "type") != "dhcp" ? "ip=${lookup(var.k8s_bootstrap_vm_network_config, "ip")}:${lookup(var.k8s_bootstrap_vm_network_config, "server_id")}:${lookup(var.k8s_bootstrap_vm_network_config, "gateway")}:${lookup(var.k8s_bootstrap_vm_network_config, "subnet")}:${var.cluster_name}-bootstrap:${lookup(var.k8s_bootstrap_vm_network_config, "interface")}:off" : "ip=::::${var.cluster_name}-bootstrap:ens192:on"
   }
   tags   = [vsphere_tag.tag.id]
   folder = vsphere_folder.vm_folder.path
