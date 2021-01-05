@@ -82,7 +82,7 @@ data "local_file" "template_vm_ignition_init_fcct" {
 resource "vsphere_virtual_machine" "templateVM" {
   depends_on       = [data.local_file.template_vm_ignition_init_fcct]
   tags             = [vsphere_tag.tag.id]
-  folder           = vsphere_folder.vm_folder.id
+  folder           = vsphere_folder.vm_folder.path
   name             = "${var.cluster_name}-template"
   resource_pool_id = data.vsphere_compute_cluster.cluster.resource_pool_id
   datacenter_id    = data.vsphere_datacenter.dc.id
@@ -201,7 +201,7 @@ resource "vsphere_virtual_machine" "bootstrapVM" {
     "guestinfo.hostname"                      = "${var.cluster_name}-bootstrap"
   }
   tags   = [vsphere_tag.tag.id]
-  folder = vsphere_folder.vm_folder.id
+  folder = vsphere_folder.vm_folder.path
 }
 ## Create Orchestrator Nodes
 
