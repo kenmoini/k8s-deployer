@@ -1,0 +1,7 @@
+.generated/
+.generated/*
+terraform-provider-ovirt/
+terraform-provider-ovirt/*
+infra_terraform/*/credentials.tf
+infra_terraform/*/terraform.tfstate*
+infra_terraform/*/.terraform*
