@@ -112,6 +112,7 @@ resource "vsphere_virtual_machine" "templateVM" {
     adapter_type = "vmxnet3"
   }
 
+  ## This template VM needs to be shutdown before being cloned to another VM
   provisioner "local-exec" {
     command = "govc vm.power -off=true ${var.cluster_name}-template && sleep 10"
 
