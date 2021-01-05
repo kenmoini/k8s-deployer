@@ -67,10 +67,6 @@ variable "k8s_template_vm_core_count" {
   type    = string
   default = "4"
 }
-variable "k8s_template_vm_ignition" {
-  type    = string
-  default = ""
-}
 
 variable "k8s_bootstrap_disk_size" {
   type    = string
@@ -87,10 +83,6 @@ variable "k8s_bootstrap_cpu_count" {
 variable "k8s_bootstrap_core_count" {
   type    = string
   default = "4"
-}
-variable "k8s_bootstrap_ignition" {
-  type    = string
-  default = ""
 }
 
 variable "k8s_orchestrator_cpu_count" {
