@@ -58,6 +58,7 @@ variable "k8s_app_node_count" {
   type    = string
   default = "3"
 }
+
 #############################################################################
 ## Template VM
 

@@ -133,7 +133,7 @@ resource "vsphere_virtual_machine" "templateVM" {
   }
 }
 
-#==================================================================
+#############################################################################
 ## Create Bootstrap node
 
 data "template_file" "bootstrap_vm_ignition_init" {
@@ -204,6 +204,36 @@ resource "vsphere_virtual_machine" "bootstrapVM" {
   tags   = [vsphere_tag.tag.id]
   folder = vsphere_folder.vm_folder.path
 }
+
+#############################################################################
 ## Create Orchestrator Nodes
+
+data "template_file" "orchestrator_vm_ignition_init" {
+  template = file("./templates/orchestrator_ignition.yaml")
+  count    = var.k8s_orchestrator_node_count
+  vars = {
+    count          = count.index
+    cluster_name   = var.cluster_name
+    ssh_public_key = tls_private_key.cluster_new_key.public_key_openssh
+  }
+}
+resource "local_file" "orchestrator_vm_ignition_file" {
+  depends_on = [data.template_file.orchestrator_vm_ignition_init]
+  count      = var.k8s_orchestrator_node_count
+  content    = element(data.template_file.orchestrator_vm_ignition_init.*.rendered, count.index)
+  filename   = "${var.generationDir}/.${var.cluster_name}.${var.domain}/orchestrator_vm_${count.index}-ignition.yaml"
+}
+resource "null_resource" "orchestrator_vm_ignition_init_fcct" {
+  depends_on = [local_file.orchestrator_vm_ignition_file]
+  count      = var.k8s_orchestrator_node_count
+  provisioner "local-exec" {
+    command = "fcct -o ${var.generationDir}/.${var.cluster_name}.${var.domain}/orchestrator_vm_${count.index}-ignition.ign ${var.generationDir}/.${var.cluster_name}.${var.domain}/orchestrator_vm_${count.index}-ignition.yaml"
+  }
+}
+data "local_file" "orchestrator_vm_ignition_init_fcct" {
+  count      = var.k8s_orchestrator_node_count
+  depends_on = [null_resource.orchestrator_vm_ignition_init_fcct]
+  filename   = "${var.generationDir}/.${var.cluster_name}.${var.domain}/orchestrator_vm_${count.index}-ignition.ign"
+}
 
 ## Create Application Nodes

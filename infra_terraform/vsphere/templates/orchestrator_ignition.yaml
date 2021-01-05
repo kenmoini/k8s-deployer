@@ -1,0 +1,22 @@
+variant: fcos
+version: 1.2.0
+passwd:
+  users:
+    - name: core
+      ssh_authorized_keys:
+        - ${ssh_public_key}
+      home_dir: /home/core
+      no_create_home: false
+      groups:
+        - wheel
+      shell: /bin/bash
+storage:
+  files:
+    - path: /etc/sysctl.d/20-silence-audit.conf
+      contents:
+        inline: |
+          kernel.printk=4
+    - path: /etc/hostname
+      mode: 420
+      contents:
+        inline: "${cluster_name}-orch-${count}"
