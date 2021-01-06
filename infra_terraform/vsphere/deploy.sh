@@ -2,8 +2,6 @@
 
 ## set -x	## Uncomment for debugging
 
-sudo pwd
-
 ## Include vars if the file exists
 FILE=./vars.sh
 if [ -f "$FILE" ]; then

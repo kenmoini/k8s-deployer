@@ -1,3 +1,4 @@
+#############################################################################
 ## Gather data, need IDs
 data "vsphere_datacenter" "dc" {
   name = var.vmware_datacenter

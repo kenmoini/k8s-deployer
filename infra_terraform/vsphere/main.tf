@@ -282,5 +282,147 @@ resource "vsphere_virtual_machine" "orchestratorVMs" {
 #############################################################################
 ## Create Infrastructure Nodes
 
+data "template_file" "infra_node_vm_ignition_init" {
+  template = file("./templates/infra_ignition.yaml")
+  count    = var.k8s_infra_node_count
+  vars = {
+    count          = count.index
+    cluster_name   = var.cluster_name
+    ssh_public_key = tls_private_key.cluster_new_key.public_key_openssh
+  }
+}
+resource "local_file" "infra_node_vm_ignition_file" {
+  depends_on = [data.template_file.infra_node_vm_ignition_init]
+  count      = var.k8s_infra_node_count
+  content    = element(data.template_file.infra_node_vm_ignition_init.*.rendered, count.index)
+  filename   = "${var.generationDir}/.${var.cluster_name}.${var.domain}/infra_vm_${count.index}-ignition.yaml"
+}
+resource "null_resource" "infra_node_vm_ignition_init_fcct" {
+  depends_on = [local_file.infra_node_vm_ignition_file]
+  count      = var.k8s_infra_node_count
+  provisioner "local-exec" {
+    command = "fcct -o ${var.generationDir}/.${var.cluster_name}.${var.domain}/infra_vm_${count.index}-ignition.ign ${var.generationDir}/.${var.cluster_name}.${var.domain}/infra_vm_${count.index}-ignition.yaml"
+  }
+}
+data "local_file" "infra_node_vm_ignition_init_fcct" {
+  count      = var.k8s_infra_node_count
+  depends_on = [null_resource.infra_node_vm_ignition_init_fcct]
+  filename   = "${var.generationDir}/.${var.cluster_name}.${var.domain}/infra_vm_${count.index}-ignition.ign"
+}
+resource "vsphere_virtual_machine" "infra_nodeVMs" {
+  depends_on = [data.vsphere_virtual_machine.templateVM, data.local_file.infra_node_vm_ignition_init_fcct]
+  count      = var.k8s_infra_node_count
+
+  name             = "${var.cluster_name}-orch-${count.index}"
+  resource_pool_id = data.vsphere_compute_cluster.cluster.resource_pool_id
+  datastore_id     = data.vsphere_datastore.datastore.id
+
+  num_cpus         = var.k8s_infra_node_cpu_count
+  memory           = var.k8s_infra_node_memory_size
+  guest_id         = "coreos64Guest"
+  enable_disk_uuid = "true"
+
+  wait_for_guest_net_timeout  = 0
+  wait_for_guest_net_routable = false
+
+  scsi_type = data.vsphere_virtual_machine.templateVM.scsi_type
+
+  network_interface {
+    network_id   = data.vsphere_network.network.id
+    adapter_type = data.vsphere_virtual_machine.templateVM.network_interface_types[0]
+  }
+
+  disk {
+    label            = "disk0"
+    size             = var.k8s_infra_node_disk_size
+    eagerly_scrub    = data.vsphere_virtual_machine.templateVM.disks.0.eagerly_scrub
+    thin_provisioned = true
+  }
+
+  clone {
+    template_uuid = data.vsphere_virtual_machine.templateVM.id
+  }
+
+  extra_config = {
+    "guestinfo.ignition.config.data"           = base64encode(element(data.local_file.infra_node_vm_ignition_init_fcct.*.content, count.index))
+    "guestinfo.ignition.config.data.encoding"  = "base64"
+    "guestinfo.hostname"                       = "${var.cluster_name}-orch-${count.index}"
+    "guestinfo.afterburn.initrd.network-kargs" = lookup(var.k8s_infra_node_network_config, "infra_node_${count.index}_type") != "dhcp" ? "ip=${lookup(var.k8s_infra_node_network_config, "infra_node_${count.index}_ip")}:${lookup(var.k8s_infra_node_network_config, "infra_node_${count.index}_server_id")}:${lookup(var.k8s_infra_node_network_config, "infra_node_${count.index}_gateway")}:${lookup(var.k8s_infra_node_network_config, "infra_node_${count.index}_subnet")}:${var.cluster_name}-orch-${count.index}:${lookup(var.k8s_infra_node_network_config, "infra_node_${count.index}_interface")}:off" : "ip=::::${var.cluster_name}-orch-${count.index}:ens192:on"
+  }
+  tags   = [vsphere_tag.tag.id]
+  folder = vsphere_folder.vm_folder.path
+}
+
 #############################################################################
 ## Create Application Nodes
+
+data "template_file" "app_node_vm_ignition_init" {
+  template = file("./templates/app_ignition.yaml")
+  count    = var.k8s_app_node_count
+  vars = {
+    count          = count.index
+    cluster_name   = var.cluster_name
+    ssh_public_key = tls_private_key.cluster_new_key.public_key_openssh
+  }
+}
+resource "local_file" "app_node_vm_ignition_file" {
+  depends_on = [data.template_file.app_node_vm_ignition_init]
+  count      = var.k8s_app_node_count
+  content    = element(data.template_file.app_node_vm_ignition_init.*.rendered, count.index)
+  filename   = "${var.generationDir}/.${var.cluster_name}.${var.domain}/app_vm_${count.index}-ignition.yaml"
+}
+resource "null_resource" "app_node_vm_ignition_init_fcct" {
+  depends_on = [local_file.app_node_vm_ignition_file]
+  count      = var.k8s_app_node_count
+  provisioner "local-exec" {
+    command = "fcct -o ${var.generationDir}/.${var.cluster_name}.${var.domain}/app_vm_${count.index}-ignition.ign ${var.generationDir}/.${var.cluster_name}.${var.domain}/app_vm_${count.index}-ignition.yaml"
+  }
+}
+data "local_file" "app_node_vm_ignition_init_fcct" {
+  count      = var.k8s_app_node_count
+  depends_on = [null_resource.app_node_vm_ignition_init_fcct]
+  filename   = "${var.generationDir}/.${var.cluster_name}.${var.domain}/app_vm_${count.index}-ignition.ign"
+}
+resource "vsphere_virtual_machine" "app_nodeVMs" {
+  depends_on = [data.vsphere_virtual_machine.templateVM, data.local_file.app_node_vm_ignition_init_fcct]
+  count      = var.k8s_app_node_count
+
+  name             = "${var.cluster_name}-orch-${count.index}"
+  resource_pool_id = data.vsphere_compute_cluster.cluster.resource_pool_id
+  datastore_id     = data.vsphere_datastore.datastore.id
+
+  num_cpus         = var.k8s_app_node_cpu_count
+  memory           = var.k8s_app_node_memory_size
+  guest_id         = "coreos64Guest"
+  enable_disk_uuid = "true"
+
+  wait_for_guest_net_timeout  = 0
+  wait_for_guest_net_routable = false
+
+  scsi_type = data.vsphere_virtual_machine.templateVM.scsi_type
+
+  network_interface {
+    network_id   = data.vsphere_network.network.id
+    adapter_type = data.vsphere_virtual_machine.templateVM.network_interface_types[0]
+  }
+
+  disk {
+    label            = "disk0"
+    size             = var.k8s_app_node_disk_size
+    eagerly_scrub    = data.vsphere_virtual_machine.templateVM.disks.0.eagerly_scrub
+    thin_provisioned = true
+  }
+
+  clone {
+    template_uuid = data.vsphere_virtual_machine.templateVM.id
+  }
+
+  extra_config = {
+    "guestinfo.ignition.config.data"           = base64encode(element(data.local_file.app_node_vm_ignition_init_fcct.*.content, count.index))
+    "guestinfo.ignition.config.data.encoding"  = "base64"
+    "guestinfo.hostname"                       = "${var.cluster_name}-orch-${count.index}"
+    "guestinfo.afterburn.initrd.network-kargs" = lookup(var.k8s_app_node_network_config, "app_node_${count.index}_type") != "dhcp" ? "ip=${lookup(var.k8s_app_node_network_config, "app_node_${count.index}_ip")}:${lookup(var.k8s_app_node_network_config, "app_node_${count.index}_server_id")}:${lookup(var.k8s_app_node_network_config, "app_node_${count.index}_gateway")}:${lookup(var.k8s_app_node_network_config, "app_node_${count.index}_subnet")}:${var.cluster_name}-orch-${count.index}:${lookup(var.k8s_app_node_network_config, "app_node_${count.index}_interface")}:off" : "ip=::::${var.cluster_name}-orch-${count.index}:ens192:on"
+  }
+  tags   = [vsphere_tag.tag.id]
+  folder = vsphere_folder.vm_folder.path
+}
